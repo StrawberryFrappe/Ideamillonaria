@@ -113,43 +113,36 @@ def best_value(row: pd.Series, views=("ens", "gbm", "mkt", "dc"), when: str = "o
     return sorted(out, key=lambda d: -d["edge"])
 
 
-def summary(row: pd.Series, home_form: str = "", away_form: str = "") -> list[str]:
-    """A handful of plain-language bullet points about a match panel row."""
+def headline(row: pd.Series, rho: float = 0.0) -> dict:
+    """Compact strings for the match header: pick, expected goals, likely score, agreement, value."""
+    from ..models.dixon_coles import score_matrix
+
     home, away = row["home"], row["away"]
-    names = [f"{home} win", "draw", f"{away} win"]
-    ens = np.array([row["p_ens_h"], row["p_ens_d"], row["p_ens_a"]])
+    ens = np.array([row["p_ens_h"], row["p_ens_d"], row["p_ens_a"]], float)
     k = int(np.nanargmax(ens))
-    lines = [f"**Most likely: {names[k]} ({ens[k]:.0%})**. Full split: {home} {ens[0]:.0%} / "
-             f"draw {ens[1]:.0%} / {away} {ens[2]:.0%}."]
-    if ens[k] < 0.45:
-        lines.append("No outcome is a clear favourite - this is a genuinely open match.")
+    out = {
+        "pick": [home, "Draw", away][k],
+        "pick_prob": f"{ens[k]:.0%}",
+        "split": f"{home} {ens[0]:.0%} · draw {ens[1]:.0%} · {away} {ens[2]:.0%}",
+        "xg": "-", "score": "-", "score_prob": None,
+        "agreement": str(row.get("agreement", "-")), "spread": None,
+        "value": "-", "value_edge": None,
+    }
     if pd.notna(row.get("dc_lambda_h")):
-        lines.append(f"Goals model expects roughly **{row['dc_lambda_h']:.1f} - {row['dc_lambda_a']:.1f}** "
-                     f"(over 2.5 goals: {row['p_dc_o25']:.0%}).")
-    if home_form or away_form:
-        lines.append(f"Recent form (latest first): {home} `{home_form or '-'}`, {away} `{away_form or '-'}`.")
+        lam, mu = float(row["dc_lambda_h"]), float(row["dc_lambda_a"])
+        out["xg"] = f"{lam:.1f} - {mu:.1f}"
+        p = score_matrix([lam], [mu], rho)[0]
+        i, j = np.unravel_index(np.argmax(p), p.shape)
+        out["score"], out["score_prob"] = f"{i}-{j}", f"{p[i, j]:.0%}"
     views = [v for v in ("elo", "dc", "gbm", "mkt", "book_open") if pd.notna(row.get(f"p_{v}_h"))]
-    ph = [row[f"p_{v}_h"] for v in views]
-    if ph:
-        lines.append(f"Agreement between views: **{row['agreement']}** - {home} win ranges "
-                     f"{min(ph):.0%}-{max(ph):.0%} across {len(views)} views.")
-    if pd.notna(row.get("p_book_open_h")):
-        bk = np.array([row["p_book_open_h"], row["p_book_open_d"], row["p_book_open_a"]])
-        diff = ens - bk
-        j = int(np.argmax(np.abs(diff)))
-        lines.append(f"Bookmakers (margin removed) say {home} {bk[0]:.0%} / draw {bk[1]:.0%} / {away} {bk[2]:.0%}. "
-                     f"Biggest disagreement: {names[j]} ({diff[j]:+.0%} models vs market).")
-        val = best_value(row)
-        ens_val = [v for v in val if v["view"] == "ens"]
-        if val:
-            b = ens_val[0] if ens_val else val[0]
-            n_views = len({v["view"] for v in val if v["outcome"] == b["outcome"]})
-            lines.append(f"Possible value: **{names[b['outcome']]}** at {b['odds']:.2f} - the {b['view']} view "
-                         f"puts fair odds at {b['fair_odds']:.2f} (edge {b['edge']:+.1%}); {n_views} of 4 views "
-                         f"see value here. Markets are usually right: one model disagreeing is weak evidence, "
-                         f"several agreeing is stronger. Treat edges under ~5% as noise.")
-        else:
-            lines.append("No meaningful value vs the current odds: models and market roughly agree.")
-    else:
-        lines.append("No bookmaker odds stored for this match - enter odds in the report to check for value.")
-    return lines
+    if views:
+        pk = [row[f"p_{v}_{'hda'[k]}"] for v in views]
+        out["spread"] = f"{min(pk):.0%}-{max(pk):.0%}"
+    val = best_value(row, views=("ens",), min_edge=0.0)
+    if val:
+        b = val[0]
+        out["value"] = f"{['H', 'D', 'A'][b['outcome']]} @ {b['odds']:.2f}"
+        out["value_edge"] = f"{b['edge']:+.1%}"
+    elif pd.notna(row.get("odds_h_open")):
+        out["value"] = "none"
+    return out

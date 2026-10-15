@@ -59,7 +59,8 @@ def test_full_pipeline_on_synthetic(tmp_data, synthetic):
     contrib = loaded.gbm.contributions(X)[0]
     rs = explain.reasons(contrib, loaded.gbm.features, X.iloc[0], 0, "H", "A")
     assert len(rs) > 0
-    assert explain.summary(p.iloc[0], "WWDLW", "LLDWW")
+    h = explain.headline(p.iloc[0], loaded.dc_fit.rho)
+    assert h["pick"] in (p.iloc[0]["home"], "Draw", p.iloc[0]["away"]) and "-" in h["score"]
 
 
 def test_journal_roundtrip(tmp_data):

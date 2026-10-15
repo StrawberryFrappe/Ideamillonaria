@@ -96,34 +96,44 @@ def render_report(code: str, row: pd.Series, x_row: pd.Series | None, matches: p
     st.subheader(f"{home} vs {away}")
     st.caption(f"{league.name} · {when.date()}" + (" · neutral venue" if row.get("neutral") else ""))
 
-    hf = context.form_string(matches, home, when)
-    af = context.form_string(matches, away, when)
-    for line in explain.summary(row, hf, af):
-        st.markdown(f"- {line}")
+    rho = art.dc_fit.rho if art.dc_fit is not None else 0.0
+    h = explain.headline(row, rho)
+    cols = st.columns(5)
+    cols[0].metric("Pick", h["pick"], h["pick_prob"], delta_color="off", delta_arrow="off",
+                   help="Ensemble's most likely result. Full split: " + h["split"])
+    cols[1].metric("Expected goals", h["xg"], help="Goals model's expected goals for each side.")
+    cols[2].metric("Likely score", h["score"], h["score_prob"], delta_color="off", delta_arrow="off",
+                   help="Single most likely scoreline; see the heatmap below for the rest.")
+    cols[3].metric("Agreement", h["agreement"], h["spread"], delta_color="off", delta_arrow="off",
+                   help="How closely Elo, goals, stats, stats+market and bookmakers agree. "
+                        "Low agreement = genuinely uncertain match.")
+    cols[4].metric("Value", h["value"], h["value_edge"], delta_color="off", delta_arrow="off",
+                   help="Best ensemble edge against the stored odds (model probability x odds - 1). "
+                        "Small edges (<5%) are usually noise.")
 
     left, right = st.columns([3, 2])
     with left:
-        st.markdown("#### Every view, side by side")
+        st.markdown("#### Views")
         st.plotly_chart(panel_chart(row), use_container_width=True, key=f"panel-{key}")
         tr = pd.DataFrame(art.track_record.get("recent") or art.track_record.get("overall") or [])
         if not tr.empty:
             tr = tr[tr["view"].isin(["elo", "dc", "gbm", "mkt", "ens", "book_open"]) & (tr["n"] > 0)]
             tr = tr.assign(view=tr["view"].map(VIEW_LABEL))[["view", "n", "rps", "accuracy"]]
-            st.caption("How each view did over the last two backtested seasons (lower RPS = better):")
             st.dataframe(tr.style.format({"rps": "{:.4f}", "accuracy": "{:.1%}"}), hide_index=True,
-                         use_container_width=True)
+                         use_container_width=True,
+                         column_config={"rps": st.column_config.NumberColumn(
+                             "RPS", help="Last two backtested seasons, out of sample. Lower is better.")})
     with right:
-        st.markdown("#### Odds and value")
+        st.markdown("#### Odds & value")
         stored = [row.get(f"odds_{o}_open") for o in "hda"]
         fair = [min(100.0, max(1.01, round(1 / row[f"p_ens_{o}"], 2))) for o in "hda"]
         defaults = [float(s) if pd.notna(s) else f for s, f in zip(stored, fair)]
         c1, c2, c3 = st.columns(3)
-        o_h = c1.number_input(f"{home}", 1.01, 100.0, defaults[0], 0.01, key=f"oh-{key}")
+        o_h = c1.number_input(f"{home}", 1.01, 100.0, defaults[0], 0.01, key=f"oh-{key}",
+                              help="Stored opening odds if available, otherwise the ensemble's fair odds. "
+                                   "Type your bookmaker's prices.")
         o_d = c2.number_input("Draw", 1.01, 100.0, defaults[1], 0.01, key=f"od-{key}")
         o_a = c3.number_input(f"{away}", 1.01, 100.0, defaults[2], 0.01, key=f"oa-{key}")
-        if all(pd.isna(s) for s in stored):
-            st.caption("No stored odds for this match: the boxes show the ensemble's *fair* odds. "
-                       "Type your bookmaker's prices to check for value.")
         odds = np.array([o_h, o_d, o_a])
         bankroll = st.session_state.get("bankroll", 100.0)
         rows = []
@@ -138,11 +148,11 @@ def render_report(code: str, row: pd.Series, x_row: pd.Series | None, matches: p
                              "¼-Kelly stake": betting.suggested_stake(p[k], odds[k], bankroll) if e > 0 else 0.0})
         vt = pd.DataFrame(rows)
         margin = (1 / odds).sum() - 1
-        st.caption(f"Bookmaker margin in these odds: {margin:.1%}. Edges below ~5% are within model noise.")
+        st.caption(f"Margin {margin:.1%}" + (" · fair odds shown" if all(pd.isna(s) for s in stored) else ""))
         if not vt.empty:
             show = vt[vt["edge"] > 0].sort_values("edge", ascending=False)
             if show.empty:
-                st.info("No view sees value at these prices.")
+                st.caption("No value at these prices.")
             else:
                 st.dataframe(show.style.format({"model prob": "{:.1%}", "fair odds": "{:.2f}",
                                                 "edge": "{:+.1%}", "¼-Kelly stake": "{:.2f}"}),
@@ -163,7 +173,7 @@ def render_report(code: str, row: pd.Series, x_row: pd.Series | None, matches: p
                     st.success("Saved. It settles automatically after the match (ideam update).")
 
     if art.dc_fit is not None and pd.notna(row.get("dc_lambda_h")):
-        st.markdown("#### Scorelines and every market (from the goals model)")
+        st.markdown("#### Scorelines & markets")
         a, b = st.columns([2, 3])
         with a:
             st.plotly_chart(heatmap(row["dc_lambda_h"], row["dc_lambda_a"], art.dc_fit.rho, home, away),
@@ -175,14 +185,13 @@ def render_report(code: str, row: pd.Series, x_row: pd.Series | None, matches: p
             mk = markets.markets(row["dc_lambda_h"], row["dc_lambda_a"], art.dc_fit.rho, home, away)
             st.dataframe(mk.style.format({"probability": "{:.1%}", "fair_odds": "{:.2f}"}), hide_index=True,
                          use_container_width=True, height=520)
-            st.caption("Fair odds = break-even price. A bookmaker price above it is value *if* the model is right.")
 
     if x_row is not None and art.gbm is not None:
-        st.markdown("#### Why? The stats model's main reasons")
+        st.markdown("#### Key factors", help="Largest SHAP contributions in the stats model for its pick.")
         contrib = art.gbm.contributions(x_row.to_frame().T)[0]
         k = int(np.nanargmax([row["p_gbm_h"], row["p_gbm_d"], row["p_gbm_a"]]))
         rs = explain.reasons(contrib, art.gbm.features, x_row, k, home, away, top=6)
-        st.caption(f"Factors pushing towards / away from **{[home + ' win', 'a draw', away + ' win'][k]}**:")
+        st.caption(f"Stats model → {[home + ' win', 'draw', away + ' win'][k]}")
         if not rs.empty:
             st.dataframe(rs.assign(effect=rs["effect"].map({"for": "▲ for", "against": "▼ against"}))
                          [["effect", "reason"]], hide_index=True, use_container_width=True)
@@ -236,7 +245,7 @@ def page_upcoming(code: str, art, matches: pd.DataFrame):
             (lambda v: f"{['H', 'D', 'A'][v[0]['outcome']]} @ {v[0]['odds']:.2f} ({v[0]['edge']:+.0%})"
              if v else "")(explain.best_value(r, views=("ens",), min_edge=0.05)) for _, r in preds.iterrows()],
     })
-    st.caption(f"Models trained {art.trained_at} on results up to {art.last_result}. Percentages are the ensemble.")
+    st.caption(f"Trained {art.trained_at[:10]} · results to {art.last_result} · ensemble %")
     st.dataframe(tbl.style.format({"home %": "{:.0%}", "draw %": "{:.0%}", "away %": "{:.0%}"}),
                  hide_index=True, use_container_width=True)
     choice = st.selectbox("Open match report", range(len(preds)),
@@ -271,8 +280,7 @@ def page_custom(code: str, art, matches: pd.DataFrame):
 
 def page_track(code: str, art):
     tr = art.track_record
-    st.markdown("Every number here is **out-of-sample**: each season was predicted by models trained only on "
-                "earlier seasons. Lower RPS / log-loss = better. *Base rates* is the 'know nothing' benchmark.")
+    st.caption("Out-of-sample (walk-forward) · lower RPS / log-loss is better")
     if "common" in tr:
         st.markdown("##### Accuracy (same matches for every view)")
         df = pd.DataFrame(tr["common"])
@@ -288,7 +296,6 @@ def page_track(code: str, art):
         df["view"] = df["view"].map(VIEW_LABEL)
         st.dataframe(df[["view", "n", "rps", "logloss", "accuracy"]].style.format(
             {"rps": "{:.4f}", "logloss": "{:.4f}", "accuracy": "{:.1%}"}), hide_index=True, use_container_width=True)
-        st.caption("Bookmakers' closing prices are the toughest benchmark in the sport. Matching them is good.")
     if tr.get("by_season"):
         bs = pd.DataFrame(tr["by_season"]).set_index("season")
         fig = go.Figure()
@@ -339,8 +346,7 @@ def page_track(code: str, art):
                     {"hit_rate": "{:.1%}", "avg_odds": "{:.2f}", "roi": "{:+.1%}", "roi_ci_low": "{:+.1%}",
                      "roi_ci_high": "{:+.1%}", "clv": "{:+.1%}", "kelly_max_drawdown": "{:.0%}"}),
                     use_container_width=True)
-                st.caption("If the ROI interval includes 0%, the result is indistinguishable from luck. "
-                           "Positive CLV (beating the closing line) is the most trustworthy sign of an edge.")
+                st.caption("ROI interval = 95% bootstrap · CLV = vs. closing line")
     with st.expander("Raw track record JSON"):
         st.json(json.loads(json.dumps(tr, default=str)))
 

@@ -1,7 +1,7 @@
 # Ideamillonaria ⚽
 
 A football (soccer) prediction and **decision-support** tool. For every match it shows several independent
-statistical views side by side, explains its reasoning in plain language, prices every common betting
+statistical views side by side, shows the key factors behind each pick, prices every common betting
 market, and keeps an honest out-of-sample track record of each view.
 
 It **does not place bets**. It is there to help you make the most informed decision you can.
@@ -77,7 +77,8 @@ models and the market disagree, that is where the information is, but remember t
 
 - **Upcoming**: fixtures with the ensemble's probabilities, pick, agreement and value flags.
 - **Match report**:
-  - A plain-language summary and every view side by side, with each view's recent track record.
+  - A one-line header (pick, expected goals, likely score, agreement, value) and every view side by side,
+    with each view's recent track record. Explanations are in hover tooltips.
   - Odds input showing your edge, fair odds and a ¼-Kelly stake suggestion (capped at 2% of bankroll).
   - A scoreline heatmap and all markets with fair odds.
   - *Why?*: the stats model's top reasons, from SHAP values.
@@ -98,8 +99,8 @@ Out-of-sample on **national-team matches 2014-2026** (12,369 matches, every view
 | Base rates (know nothing) | 0.2286 | 1.052 | 47.6% |
 | Elo | 0.1730 | 0.881 | 59.8% |
 | Goals model | 0.1716 | 0.875 | 60.3% |
-| Stats model | 0.1705 | 0.871 | 60.4% |
-| **Ensemble** | **0.1699** | **0.868** | 60.3% |
+| Stats model | 0.1705 | 0.871 | 60.2% |
+| **Ensemble** | **0.1699** | **0.868** | 60.2% |
 
 Club leagues are harder: around 0.19-0.21 RPS and 50-55% accuracy is typical for top leagues. Bookmakers'
 closing prices are the toughest benchmark in the sport. Run `ideam backtest EPL` on your machine to see
@@ -121,7 +122,7 @@ src/ideamillonaria/
   data/                  canonical schema, source adapters, storage, team-name matching
   models/                elo, dixon_coles, features, gbm, ensemble, market
   evaluate/              walk-forward backtest, scoring rules, betting simulation
-  report/                markets from the score grid, plain-language explanations, context tables
+  report/                markets from the score grid, match headline + key factors, context tables
   pipeline.py            train -> backtest -> final fit -> predict
   journal.py             personal bet log (SQLite)
   cli.py                 `ideam` command
