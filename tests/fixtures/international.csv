@@ -1,0 +1,4 @@
+date,home_team,away_team,home_score,away_score,tournament,city,country,neutral
+2022-12-18,Argentina,France,3,3,FIFA World Cup,Lusail,Qatar,TRUE
+2023-03-23,Argentina,Panama,2,0,Friendly,Buenos Aires,Argentina,FALSE
+2024-06-25,Chile,Argentina,0,1,Copa América,East Rutherford,United States,TRUE

@@ -1,0 +1,25 @@
+{"events": [
+ {"id": "701001", "date": "2025-03-01T23:30Z", "name": "Colo-Colo at Universidad de Chile",
+  "season": {"year": 2025},
+  "competitions": [{"id": "701001", "date": "2025-03-01T23:30Z", "neutralSite": false,
+    "status": {"type": {"state": "post", "completed": true, "name": "STATUS_FULL_TIME"}},
+    "competitors": [
+      {"homeAway": "home", "score": "2", "team": {"id": "1", "displayName": "Universidad de Chile"},
+       "statistics": [{"name": "totalShots", "displayValue": "14"}, {"name": "shotsOnTarget", "displayValue": "6"},
+                      {"name": "wonCorners", "displayValue": "5"}, {"name": "possessionPct", "displayValue": "55.2"}]},
+      {"homeAway": "away", "score": "1", "team": {"id": "2", "displayName": "Colo-Colo"},
+       "statistics": [{"name": "totalShots", "displayValue": "9"}, {"name": "shotsOnTarget", "displayValue": "3"}]}],
+    "odds": [{"provider": {"name": "ESPN BET"}, "homeTeamOdds": {"moneyLine": 120}, "awayTeamOdds": {"moneyLine": 210},
+              "drawOdds": {"moneyLine": 230}, "overUnder": 2.5}]}]},
+ {"id": "701002", "date": "2025-03-08T20:00Z", "name": "Cobresal at Huachipato",
+  "competitions": [{"id": "701002", "date": "2025-03-08T20:00Z",
+    "status": {"type": {"state": "pre", "completed": false, "name": "STATUS_SCHEDULED"}},
+    "competitors": [
+      {"homeAway": "home", "score": "0", "team": {"displayName": "Huachipato"}},
+      {"homeAway": "away", "score": "0", "team": {"displayName": "Cobresal"}}]}]},
+ {"id": "701003", "date": "2025-03-09T20:00Z",
+  "competitions": [{"status": {"type": {"state": "post", "completed": false, "name": "STATUS_POSTPONED"}},
+    "competitors": [
+      {"homeAway": "home", "team": {"displayName": "Palestino"}},
+      {"homeAway": "away", "team": {"displayName": "Everton"}}]}]}
+]}

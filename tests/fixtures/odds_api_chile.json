@@ -1,0 +1,9 @@
+[{"id": "abc123", "sport_key": "soccer_chile_campeonato", "commence_time": "2025-03-08T20:00:00Z",
+  "home_team": "Huachipato", "away_team": "Cobresal",
+  "bookmakers": [
+   {"key": "pinnacle", "title": "Pinnacle", "last_update": "2025-03-05T10:00:00Z",
+    "markets": [{"key": "h2h", "outcomes": [{"name": "Huachipato", "price": 2.10}, {"name": "Cobresal", "price": 3.60}, {"name": "Draw", "price": 3.30}]},
+                {"key": "totals", "outcomes": [{"name": "Over", "price": 2.0, "point": 2.5}, {"name": "Under", "price": 1.85, "point": 2.5}]}]},
+   {"key": "betfair", "title": "Betfair", "last_update": "2025-03-05T10:00:00Z",
+    "markets": [{"key": "h2h", "outcomes": [{"name": "Huachipato", "price": 2.20}, {"name": "Cobresal", "price": 3.40}, {"name": "Draw", "price": 3.25}]}]}
+  ]}]
